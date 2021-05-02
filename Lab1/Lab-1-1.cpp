@@ -29,10 +29,14 @@ int main(void)
 		sum = 0;
 		total = 0.0;
 		// Work Loop, do some work by looping VERYBIG times
-		#pragma omp parallel for private(sumx, sumy, k) reduction(+: sum, total) schedule(dynamic, 2000)
+		#pragma omp parallel for \
+		private(sumx, sumy, k) \
+		schedule(static, 2000) \
+		reduction(+: sum, total)
 		for (j = 0; j < VERYBIG; j++)
 		{
 			// increment check sum
+			// #pragma omp critical
 			sum += 1;
 			// Calculate first arithmetic series
 			sumx = 0.0;
@@ -43,8 +47,10 @@ int main(void)
 			for (k = j; k > 0; k--)
 				sumy = sumy + (double)k;
 			if (sumx > 0.0)
+			// #pragma omp critical
 				total = total + 1.0 / sqrt(sumx);
 			if (sumy > 0.0)
+			// #pragma omp critical
 				total = total + 1.0 / sqrt(sumy);
 		}
 		// get ending time and use it to determine elapsed time
