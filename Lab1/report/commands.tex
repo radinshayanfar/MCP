@@ -1,0 +1,77 @@
+\usepackage[top=30mm, bottom=30mm, left=25mm, right=25mm]{geometry}
+\usepackage{amsthm,amssymb,amsmath,amsfonts}
+\usepackage{fancyhdr}
+\usepackage{changepage}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fontspec}
+
+\newfontfamily{\ttconsolas}{Consolas}
+
+\lstset{
+  basicstyle=\ttconsolas,
+}
+
+\usepackage{tikz}
+\usetikzlibrary{trees}
+
+% بسته‌‌ای برای ظاهر شدن شکل‌ها و تصاویر متن
+\usepackage{graphicx}
+\usepackage{color}
+%بسته‌ای برای تنظیم فاصله عمودی خط‌های متن
+\usepackage{setspace}
+
+\usepackage[pagebackref=false,colorlinks,urlcolor=cyan,linkcolor=blue,citecolor=red]{hyperref}
+
+\hypersetup{
+    pdftitle={\hwtitle - \studentname - شماره دانشجویی: \studentnumber},
+    bookmarks=true,
+    pdfauthor={Radin Shayanfar},
+}
+
+% بسته‌ لازم برای تنظیم سربرگ‌ها
+\usepackage{fancyhdr}
+
+\usepackage{ptext} 
+\usepackage{xepersian}
+
+\doublespacing
+
+\SepMark{-}
+\settextfont[Scale=1.2]{B Nazanin}
+\setlatintextfont{Times New Roman}
+\renewcommand{\labelitemi}{$\bullet$}
+
+\newcounter{mynumber}
+\setcounter{mynumber}{1}
+\newcommand{\mynum}{\arabic{mynumber}\stepcounter{mynumber}}
+
+\newenvironment{question}{%
+\medskip%
+\par%
+\noindent%
+\textbf{سوال \mynum- \space}%
+\smallskip
+%\par\noindent\ignorespaces
+\begin{adjustwidth}{7mm}{}
+}{%
+\end{adjustwidth}
+\par\medskip
+}
+
+\fancypagestyle{first_page}{
+\fancyhf{}
+\fancyhead[C]{\raisebox{3ex}{\large \bfseries \hwtitle}}
+\fancyhead[LO,LE]{\textbf{\studentname} \\
+شماره دانشجویی: \studentnumber
+\vspace{0.2mm}}
+\fancyfoot[C]{\thepage{}}
+\renewcommand{\headrulewidth}{1.2pt}
+}
+
+\fancypagestyle{pages}{
+\fancyhf{}
+\fancyhead[R]{\leftmark}
+\fancyfoot[C]{\thepage{}}
+\renewcommand{\headrulewidth}{1.2pt}
+}
