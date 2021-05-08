@@ -17,9 +17,9 @@ int main(void)
 	double sumx, sumy, total;
 	double starttime, elapsedtime;
 	double times_sum = 0;
-	omp_lock_t sum_lock, total_lock;
-	omp_init_lock(&sum_lock);
-	omp_init_lock(&total_lock);
+	// omp_lock_t sum_lock, total_lock;
+	// omp_init_lock(&sum_lock);
+	// omp_init_lock(&total_lock);
 	// -----------------------------------------------------------------------
 	// Output a start message
 	printf("Parallel Timings for %ld iterations\n\n", VERYBIG);
@@ -31,17 +31,18 @@ int main(void)
 		// reset check sum & running total
 		sum = 0;
 		total = 0.0;
-// Work Loop, do some work by looping VERYBIG times
-#pragma omp parallel for private(sumx, sumy, k)
-		// reduction(+: sum, total)
-		// schedule(static, 2000)
+		// Work Loop, do some work by looping VERYBIG times
+		#pragma omp parallel \
+		for private(sumx, sumy, k) \
+		reduction(+: sum, total)
+		// num_threads(512)
 		for (j = 0; j < VERYBIG; j++)
 		{
 			// increment check sum
 			// #pragma omp critical
-			omp_set_lock(&sum_lock);
+			// omp_set_lock(&sum_lock);
 			sum += 1;
-			omp_unset_lock(&sum_lock);
+			// omp_unset_lock(&sum_lock);
 			// Calculate first arithmetic series
 			sumx = 0.0;
 			for (k = 0; k < j; k++)
@@ -53,16 +54,16 @@ int main(void)
 			if (sumx > 0.0)
 			{
 				// #pragma omp critical
-				omp_set_lock(&total_lock);
+				// omp_set_lock(&total_lock);
 				total = total + 1.0 / sqrt(sumx);
-				omp_unset_lock(&total_lock);
+				// omp_unset_lock(&total_lock);
 			}
 			if (sumy > 0.0)
 			{
 				// #pragma omp critical
-				omp_set_lock(&total_lock);
+				// omp_set_lock(&total_lock);
 				total = total + 1.0 / sqrt(sumy);
-				omp_unset_lock(&total_lock);
+				// omp_unset_lock(&total_lock);
 			}
 		}
 		// get ending time and use it to determine elapsed time
