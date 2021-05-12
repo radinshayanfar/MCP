@@ -32,8 +32,8 @@ int main(void)
 		sum = 0;
 		total = 0.0;
 		// Work Loop, do some work by looping VERYBIG times
-		#pragma omp parallel \
-		for private(sumx, sumy, k) \
+		#pragma omp parallel for \
+		private(sumx, sumy, k) \
 		reduction(+: sum, total)
 		// num_threads(512)
 		for (j = 0; j < VERYBIG; j++)
