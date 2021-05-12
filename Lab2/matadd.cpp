@@ -8,12 +8,13 @@
 // Let it be.
 #define _CRT_SECURE_NO_WARNINGS
 
-#define RUN_COUNT 10
+#define RUN_COUNT 1
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 #include <omp.h>
+#include <math.h>
 
 typedef struct {
 	int *A, *B, *C;
@@ -24,6 +25,7 @@ void fillDataSet(DataSet *dataSet);
 void printDataSet(DataSet dataSet);
 void closeDataSet(DataSet dataSet);
 void add(DataSet dataSet);
+void add2D(DataSet dataSet);
 
 int main(int argc, char *argv[]) {
 	DataSet dataSet;
@@ -44,7 +46,7 @@ int main(int argc, char *argv[]) {
 		printf("OpenMP is not supported.\n");
 		return 0;
 	#endif
-	omp_set_num_threads(8);
+	// omp_set_num_threads(8);
 
 	double starttime, elapsedtime;
 	double times_sum = 0;
@@ -55,8 +57,8 @@ int main(int argc, char *argv[]) {
 		starttime = omp_get_wtime();
 
 		fillDataSet(&dataSet);
-		add(dataSet);
-		// printDataSet(dataSet);
+		add2D(dataSet);
+		printDataSet(dataSet);
 		closeDataSet(dataSet);
 
 		// get ending time and use it to determine elapsed time
@@ -81,7 +83,7 @@ void fillDataSet(DataSet *dataSet) {
 
 	srand(time(NULL));
 
-	// #pragma omp parallel for
+	// #pragma omp parallel for num_threads(8)
 	for (i = 0; i < dataSet->n; i++) {
 		for (j = 0; j < dataSet->m; j++) {
 			dataSet->A[i*dataSet->m + j] = rand() % 100;
@@ -112,7 +114,7 @@ void printDataSet(DataSet dataSet) {
 	printf("[-] Matrix C\n");
 	for (i = 0; i < dataSet.n; i++) {
 		for (j = 0; j < dataSet.m; j++) {
-			printf("%-8d", dataSet.C[i*dataSet.m + j]);
+			printf("%-4d", dataSet.C[i*dataSet.m + j]);
 		}
 		putchar('\n');
 	}
@@ -126,11 +128,37 @@ void closeDataSet(DataSet dataSet) {
 
 void add(DataSet dataSet) {
 	int i, j;
-	#pragma omp parallel for
+	#pragma omp parallel for num_threads(2)
 	for (i = 0; i < dataSet.n; i++) {
 		for (j = 0; j < dataSet.m; j++) {
 			dataSet.C[i * dataSet.m + j] = dataSet.A[i * dataSet.m + j] + dataSet.B[i * dataSet.m + j];
 			// dataSet.C[i * dataSet.m + j] = omp_get_thread_num();
+		}
+	}
+}
+
+void add2D(DataSet dataSet) {
+	#pragma omp parallel num_threads(16)
+	{
+		int i, j;
+
+		int n_threads = omp_get_num_threads();
+		int row_blocks = sqrt(n_threads);
+		int col_blocks = sqrt(n_threads);
+
+		int row_block_size = dataSet.n / row_blocks;
+		int col_block_size = dataSet.m / col_blocks;
+
+		int curr_thread = omp_get_thread_num();
+
+		int row = curr_thread / row_blocks;
+		int col = curr_thread % col_blocks;
+
+		for (i = row * row_block_size; i < (row + 1) * row_block_size; i++) {
+			for (j = col * col_block_size; j < (col + 1) * col_block_size; j++) {
+				dataSet.C[i * dataSet.m + j] = dataSet.A[i * dataSet.m + j] + dataSet.B[i * dataSet.m + j];
+				// dataSet.C[i * dataSet.m + j] = omp_get_thread_num();
+			}
 		}
 	}
 }
