@@ -159,7 +159,19 @@ omp_init_lock(&total_lock);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %Q2
 \begin{question}
-بله؛ به جای محافظت از ناحیه بحرانی با \lr{critical}، به علت اینکه تنها اعمال ناحیه بحرانی اعمال حسابی (\lr{arithmetic}) هستند، می‌توان با استفاده از \lr{atomic} این اعمال را انجام داد.
+بله؛ به جای محافظت از ناحیه بحرانی با \lr{critical}، به علت اینکه تنها اعمال ناحیه بحرانی اعمال حسابی (\lr{arithmetic}) هستند، می‌توان با استفاده از \lr{atomic} این اعمال را انجام داد. باید توجه داشت که برای استفاده از \lr{atomic}، لازم است عبارت جمع را به جای
+\begin{latin}
+\begin{lstlisting}[language=C]
+total = total + 1.0 / sqrt(sumx);
+\end{lstlisting}
+\end{latin}
+به شکل
+\begin{latin}
+\begin{lstlisting}[language=C]
+total += 1.0 / sqrt(sumx);
+\end{lstlisting}
+\end{latin}
+نوشت.
 \end{question}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
