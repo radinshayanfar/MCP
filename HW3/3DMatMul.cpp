@@ -138,7 +138,7 @@ void mulCol(Dataset dataset) {
 }
 
 void mulBlock(Dataset dataset) {
-	#pragma omp parallel for num_threads(16)
+	#pragma omp parallel for num_threads(8)
 	for (int i = 0; i < dataset.n; i++) {
 		for (int j = 0; j < dataset.n; j++)  {
 			for (int k = 0; k < dataset.n; k++) {
@@ -148,6 +148,7 @@ void mulBlock(Dataset dataset) {
 				}
 			}
 		}
+		printf("thread: %d, i = %d done.\n", omp_get_thread_num(), i);
 	}
 }
 
