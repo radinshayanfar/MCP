@@ -54,15 +54,18 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < RUN_COUNT; i++)
 	{
 		// get starting time
-		starttime = omp_get_wtime();
 
 		fillDataSet(&dataSet);
+
+		starttime = omp_get_wtime();
 		add(dataSet);
+		// get ending time and use it to determine elapsed time
+		elapsedtime = omp_get_wtime() - starttime;
+
 		// printDataSet(dataSet);
 		closeDataSet(dataSet);
 
-		// get ending time and use it to determine elapsed time
-		elapsedtime = omp_get_wtime() - starttime;
+
 		// report elapsed time
 		printf("[-] Time Elapsed: %f Secs\n", elapsedtime);
 		times_sum += elapsedtime;
@@ -83,7 +86,7 @@ void fillDataSet(DataSet *dataSet) {
 
 	srand(time(NULL));
 
-	// #pragma omp parallel for num_threads(8)
+	#pragma omp parallel for private(i, j) num_threads(8)
 	for (i = 0; i < dataSet->n; i++) {
 		for (j = 0; j < dataSet->m; j++) {
 			dataSet->A[i*dataSet->m + j] = rand() % 100;
@@ -128,7 +131,7 @@ void closeDataSet(DataSet dataSet) {
 
 void add(DataSet dataSet) {
 	int i, j;
-	#pragma omp parallel for num_threads(8)
+	#pragma omp parallel for private(i, j) num_threads(1)
 	for (i = 0; i < dataSet.n; i++) {
 		for (j = 0; j < dataSet.m; j++) {
 			dataSet.C[i * dataSet.m + j] = dataSet.A[i * dataSet.m + j] + dataSet.B[i * dataSet.m + j];
