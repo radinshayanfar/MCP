@@ -4,4 +4,4 @@ run_Q3: Q3
 	@rm Q3.out
 
 Q3:
-	gcc Q3.cpp -fopenmp -lm -o Q3.out
+	gcc Q3.cpp -fopenmp -lm -o Q3.out -O3

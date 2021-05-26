@@ -4,11 +4,11 @@
 #include <omp.h>
 #include <math.h>
 
-#define RUN_COUNT 1
+#define RUN_COUNT 10
 
 typedef struct {
 	float **A, **L, **U;
-	int n, blocks  = 3;
+	int n, blocks  = 4;
 } Dataset;
 
 float **allocateMatrix(int n);
@@ -24,6 +24,7 @@ void multiplicationFU(Dataset dataset, int row, int column, float **U);
 void multiplicationLF(float **L, Dataset dataset, int row, int column);
 float **multiplicationLU(Dataset dataset, int L_row, int L_column, int U_row, int U_column);
 float determinant(Dataset dataset);
+float detSerial(Dataset dataset);
 
 int main(int argc, char* argv[]) {
 	Dataset dataset;
@@ -55,31 +56,13 @@ int main(int argc, char* argv[]) {
 		// get starting time
 		starttime = omp_get_wtime();
 
-		printMatrix(dataset.n, dataset.A);
+		// printMatrix(dataset.n, dataset.A);
 		float det = determinant(dataset);
-		printf("determinant: %f\n", det);
-		// luDecomposition(dataset, 1, 0);
-		// luDecomposition(dataset, 0, 1);
 		// printf("\n");
-		// printMatrix(dataset.n, dataset.A);
-		printf("\n");
-		printMatrix(dataset.n, dataset.L);
-		printf("\n");
-		printMatrix(dataset.n, dataset.U);
-		// float **mul = multiplicationLU(dataset, 1, 0, 0, 1);
+		// printMatrix(dataset.n, dataset.L);
 		// printf("\n");
-		// printMatrix(4, mul);
-		// for (int i = 0; i < 4; i++)
-		// {
-		// 	for (int j = 0; j < 4; j++)
-		// 	{
-		// 		subt[i][j] = dataset.A[i + 4][j];
-		// 	}
-		// }
-		// subtract(dataset, subt, 1, 0);
-		// printf("\n");
-		// printMatrix(dataset.n, dataset.A);
-		
+		// printMatrix(dataset.n, dataset.U);
+		// printf("\ndeterminant: %f\n", det);
 
 		// get ending time and use it to determine elapsed time
 		elapsedtime = omp_get_wtime() - starttime;
@@ -142,7 +125,7 @@ void printMatrix(int n, float **mat) {
 		printf("[");
 		for (int j = 0; j < n; j++) {
 			printf("%.2f, ", mat[i][j]);
-			// printf("%5.2f ", mat[i][j]);
+			// printf("%7.2f ", mat[i][j]);
 		}
 		printf("], \n");
 		// printf("\n");
@@ -329,11 +312,62 @@ float determinant(Dataset dataset) {
 	int n = dataset.n;
 	int blocks = dataset.blocks;
 
+	#pragma omp parallel
+	{
+		#pragma omp single
+		{
+			for (int k = 0; k < blocks; k++) {
+				luDecomposition(dataset, k, k);
+
+				float **U_inv, **L_inv;
+				#pragma omp task shared(U_inv) firstprivate(dataset, k)
+					U_inv = upperInverse(dataset, k, k);
+				#pragma omp task shared(L_inv) firstprivate(dataset, k)
+					L_inv = lowerInverse(dataset, k, k);
+				#pragma omp taskwait
+				
+				for (int i = k + 1; i < blocks; i++) {
+					#pragma omp task firstprivate(dataset, i, k, U_inv)
+						multiplicationFU(dataset, i, k, U_inv);
+					#pragma omp task firstprivate(dataset, i, k, L_inv)
+						multiplicationLF(L_inv, dataset, k, i);
+				}
+				#pragma omp taskwait
+
+				float **LU_mul;
+				for (int i = k + 1; i < blocks; i++) {
+					for (int j = k + 1; j < blocks; j++) {
+						#pragma omp task private(LU_mul) firstprivate(dataset, i, k, j)
+						{
+							LU_mul = multiplicationLU(dataset, i, k, k, j);
+							subtract(dataset, LU_mul, i, j);
+						}
+					}
+				}
+				#pragma omp taskwait
+			}
+		}
+	}
+
+	float det = 1;
+	for (int i = 0; i < n; i++){
+		det *= dataset.U[i][i];
+	}
+
+	return det;	
+}
+
+float detSerial(Dataset dataset) {
+	int n = dataset.n;
+	int blocks = dataset.blocks;
+
 	for (int k = 0; k < blocks; k++) {
 		luDecomposition(dataset, k, k);
 
-		float **U_inv = upperInverse(dataset, k, k);
-		float **L_inv = lowerInverse(dataset, k, k);
+		float **U_inv, **L_inv;
+		U_inv = upperInverse(dataset, k, k);
+		L_inv = lowerInverse(dataset, k, k);
+		
 		for (int i = k + 1; i < blocks; i++) {
 			multiplicationFU(dataset, i, k, U_inv);
 			multiplicationLF(L_inv, dataset, k, i);
