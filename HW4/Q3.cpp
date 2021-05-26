@@ -8,7 +8,7 @@
 
 typedef struct {
 	float **A, **L, **U;
-	int n, blocks  = 4;
+	int n, blocks  = 16;
 } Dataset;
 
 float **allocateMatrix(int n);
@@ -38,13 +38,13 @@ int main(int argc, char* argv[]) {
 		dataset.n = atoi(argv[1]);
 	}
 
-	printf("[-] dim size is: %d, and dataset size is: %lu bytes\n\n", dataset.n, (unsigned int)pow(dataset.n, 2) * sizeof(int));
+	printf("[-] dim size is: %d, and dataset size is: %lu bytes\n\n", dataset.n, (unsigned int)pow(dataset.n, 2) * sizeof(float));
 
 	#ifndef _OPENMP
 		printf("OpenMP is not supported.\n");
 		return 0;
 	#endif
-	// omp_set_num_threads(4);
+	omp_set_num_threads(8);
 
 	double starttime, elapsedtime;
 	double times_sum = 0;
