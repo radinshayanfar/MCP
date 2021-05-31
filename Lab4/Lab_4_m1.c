@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <omp.h>
+#include <math.h>
 
 void omp_check();
 void fill_array(int *a, size_t n);
@@ -70,9 +71,57 @@ int main(int argc, char *argv[]) {
 }
 
 void prefix_sum(int *a, size_t n) {
-	int i;
-	for (i = 1; i < n; ++i) {
-		a[i] = a[i] + a[i - 1];
+	int *last_sums, *starts, *ends;
+	#pragma omp parallel num_threads(8)
+	{
+		int thread_num = omp_get_thread_num(), num_threads = omp_get_num_threads();
+		#pragma omp single
+		{
+			last_sums 	= (int *) malloc(num_threads * sizeof(int));
+			starts 		= (int *) malloc(num_threads * sizeof(int));
+			ends 		= (int *) malloc(num_threads * sizeof(int));
+		}
+
+		int workload_size = ceil((double)n / num_threads);
+		starts[thread_num] = thread_num * workload_size;
+		ends[thread_num] = starts[thread_num] + workload_size;
+		int excessive = workload_size * num_threads - n;
+		if (thread_num >= num_threads - excessive) {
+			starts[thread_num] 	-= thread_num - num_threads + excessive;
+			ends[thread_num] 	-= thread_num - num_threads + excessive + 1;
+		}
+		// printf("th: %d, start: %d, end: %d\n", thread_num, starts[thread_num], ends[thread_num]);
+
+		for (int i = starts[thread_num] + 1; i < ends[thread_num]; i++) {
+			a[i] += a[i - 1];
+		}
+		#pragma omp barrier
+
+		// #pragma omp single
+		// 	print_array(a, n);
+		
+		#pragma omp single
+		{
+			// starts[0] = 1;						// just to avoid deadlock by putting barrier inside if
+			last_sums[0] = 0;
+			for (int i = 1; i < num_threads; i++) {
+				last_sums[i] = a[starts[i] - 1] + last_sums[i - 1];
+			}
+		}
+		
+		int const_sum = last_sums[thread_num];
+		if (thread_num != 0) {
+			// printf("th: %d, start: %d, end: %d, const: %d\n", thread_num, starts[thread_num], ends[thread_num], const_sum);
+			for (int i = starts[thread_num]; i < ends[thread_num]; i++) {
+				a[i] += const_sum;
+			}
+		}
+		// int i;
+		// // #pragma omp for private(i)
+		// for (i = starts[thread_num]; i < end[thread_num]; i++) {
+		// 	a[i] = omp_get_thread_num();
+		// }
+		
 	}
 }
 
@@ -80,13 +129,14 @@ void print_array(int *a, size_t n) {
 	int i;
 	printf("[-] array: ");
 	for (i = 0; i < n; ++i) {
-		printf("%d, ", a[i]);
+		printf("%3d, ", a[i]);
 	}
 	printf("\b\b  \n");
 }
 
 void fill_array(int *a, size_t n) {
 	int i;
+	#pragma omp parallel for
 	for (i = 0; i < n; ++i) {
 		a[i] = i + 1;
 	}
