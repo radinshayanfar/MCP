@@ -19,7 +19,59 @@
 
 \subsection{کد سریال}
 
+\begin{table}[ht]
+\caption{نتایج کد سریال}
+\begin{center}
+\begin{tabular}{|c|c|}
+    \hline
+ورودی (\lr{N}) & میانگین زمان اجرا (ثانیه) \\
+\hline
+ $10^6$ & 0/002398 \\ \hline
+ $10^7$ & 0/023123 \\ \hline
+ $10^8$ & 0/237607 \\ \hline
+ $10^9$ & 2/471205 \\ \hline
+\end{tabular}
+\end{center}
+\label{tab:serial}
+\end{table}
+
 \subsection{موازی‌سازی: روش اول}
+
+\begin{table}[ht]
+\caption{نتایج روش اول}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{تعداد نخ‌ها} & \multicolumn{4}{|c|}{میانگین زمان اجرا (ثانیه)}& \multirow{2}{*}{تسریع} \\
+    \cline{2-5}
+& $10^6$ & $10^7$ & $10^8$ & $10^9$ & \\
+    \hline
+  2 & 0/002415 & 0/016469 & 0/171688 & 1/789166 & 1/29 \\ \hline
+  4 & 0/002293 & 0/013717 & 0/151895 & 1/452124 & 1/49 \\ \hline
+  8 & 0/001325 & 0/015564 & 0/159644 & 1/498125 & 1/60 \\ \hline
+\end{tabular}
+\end{center}
+\label{tab:m1}
+\end{table}
+
+\subsection{موازی‌سازی: روش دوم}
+
+\begin{table}[ht]
+\caption{نتایج روش دوم}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{تعداد نخ‌ها} & \multicolumn{4}{|c|}{میانگین زمان اجرا (ثانیه)}& \multirow{2}{*}{تسریع} \\
+    \cline{2-5}
+& $10^6$ & $10^7$ & $10^8$ & $10^9$ & \\
+    \hline
+  2 & 0/013578 & 0/254541 & 2/917334 & 34/265091 & 0/10 \\ \hline
+  4 & 0/009447 & 0/243577 & 2/808060 & 32/256328 & 0/12 \\ \hline
+  8 & 0/008433 & 0/248601 & 2/797142 & 31/919316 & 0/13 \\ \hline
+\end{tabular}
+\end{center}
+\label{tab:m2}
+\end{table}
 
 %\begin{figure}[ht!]
 %\begin{center}
