@@ -81,15 +81,13 @@ void prefix_sum(int *a, size_t n) {
 				partial_sum[i + stride] = a[i + stride] + a[i];
 			}
 
-			#pragma omp barrier
-
 			#pragma omp for
 			for (i = stride; i < n; i++) {
 				a[i] = partial_sum[i];
 			}
-			#pragma omp barrier
 		}
 	}
+	free(partial_sum);
 }
 
 void print_array(int *a, size_t n) {
