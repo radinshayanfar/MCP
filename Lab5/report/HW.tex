@@ -24,12 +24,100 @@
 \label{fig:query}
 \end{figure}
 
-%\begin{latin}
-%%\begin{minipage}{\linewidth}
-%\begin{lstlisting}[language=C]
-%#pragma omp parallel for
-%\end{lstlisting}
-%%\end{minipage}
-%\end{latin}
+\section{گام دوم}
+
+\begin{center}
+\textbf{
+زمان‌های اجرا میانگین ۱۰ بار اجرا است. همچنین زمان پر و کپی کردن بردارها و آزاد کردن حافظه در نظر گرفته نشده است.
+}
+\end{center}
+
+برنامه جمع دو بردار را در حالت سریال بر روی \lr{CPU} اجرا می‌کنیم. زمان اجرا در حالت سریال به علت کوچک بودن برابر
+\textbf{صفر}
+ گزارش می‌شود.
+
+با اضافه کردن تابع \lr{addWithCuda} و بردن محاسبات بر روی \lr{GPU} زمان اجرا به
+\textbf{0/000048 ثانیه}
+می‌رسد. دلیل کاهش سرعت اجرا، بالا بودن سربارهای بردن محاسبات روی \lr{GPU} نسبت به اندازه مسئله است.
+
+\section{گام سوم}
+
+به کد قسمت قبل متغیرهای
+\lr{ELEMENTS\_PER\_THREAD}،
+\lr{NUM\_THREADS}
+و
+\lr{NUM\_BLOCKS}
+را اضافه می‌کنیم و تغییرات لازم را در کرنل انجام می‌دهیم. زمان‌های اجرای آزمایش شده در جدول
+\ref{tab:gpuAdd}
+آمده است (تسریع با میانگین‌گیری تسریع دو ستون انتهایی محاسبه شده است).
+
+\begin{table}[ht]
+\caption{زمان‌های اجرا (ثانیه) به ازای اندازه ورودی‌های مختلف}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{موازی‌سازی} & \multicolumn{3}{|c|}{اندازه ورودی}& \multirow{2}{*}{تسریع} \\
+    \cline{2-4}
+& $2^{26}$ & $2^{27}$ & $2^{28}$ & \\
+    \hline
+  سریال & 
+  0/071802 & 0/141790 & 0/281426 & - \\ \hline
+  
+  پردازش $n$ المان توسط هر نخ &
+  0/153959 & 0/302569 & 1/038570 & 0/36 \\ \hline
+  
+  پردازش با $n$ بلوک & 
+  0/005561 & 0/010990 & 0/021471 & 13/00 \\ \hline
+\end{tabular}
+\end{center}
+\label{tab:gpuAdd}
+\end{table}
+
+در حالتی که هر نخ یک المان را پردازش می‌کند متغیر \lr{ELEMENTS\_PER\_THREAD} برابر یک قرار داده شده است. در حالت پردازش $n$ المان توسط هر نخ، مقدار این متغیر به شکل زیر محاسبه شده است.
+
+\begin{latin}
+%\begin{minipage}{\linewidth}
+\begin{lstlisting}[language=C]
+int ELEMENTS_PER_THREAD = size / 1024;
+\end{lstlisting}
+%\end{minipage}
+\end{latin}
+
+در شکل‌های
+\ref{fig:gpu-coarse}
+و
+\ref{fig:gpu-fine}
+به ترتیب خروجی برنامه در حالت پردازش $n$ المان توسط هر نخ و پردازش یک المان توسط $n$ بلوک برای اندازه ورودی $2^{28}$ آمده است.
+
+ همانطور که می‌بینیم در حالت اول تنها یک بلوک نخ ۱۰۲۴ تایی داریم و هر نخ 262144 المان را پردازش می‌کند. این حالت به دلیل شباهت نحوه محاسبه به محاسبات روی \lr{CPU}، روی هسته‌های کوچک و ضعیف \lr{GPU} به خوبی جواب نمی‌دهد و اجرای آن \textbf{بسیار کندتر} است.
+ 
+ در حالت دوم هر نخ تنها یک المان را پردازش می‌کند اما تعداد بلوک‌های ۱۰۲۴ تایی 262144 است. این کار (دادن کارهای کوچک به هر نخ و زیاد کردن تعداد نخ‌ها با افزایش تعداد بلوک‌ها) باعث استفاده حداکثری از قدرت \lr{GPU} می‌شود و زمان اجرا \textbf{به شدت کاهش} می‌یابد.
+ 
+\begin{figure}[ht!]
+\begin{center}
+	\includegraphics[width=15cm]{images/gpu-coarse}
+\end{center}
+\caption{پردازش
+$n$
+المان توسط هر نخ (درشت دانگی) منجر به کاهش شدید سرعت روی
+\lr{GPU}
+می‌شود.}
+\label{fig:gpu-coarse}
+\end{figure}
+
+\begin{figure}[ht!]
+\begin{center}
+	\includegraphics[width=15cm]{images/gpu-fine}
+\end{center}
+\caption{پردازش یک المان توسط هر نخ (ریز دانگی) منجر به کاهش شدید زمان اجرا و تسریع مناسب روی
+\lr{GPU}
+می‌شود.}
+\label{fig:gpu-fine}
+\end{figure}
+
+
+\newpage
+\section{گام چهارم}
+
 
 \end{document}
