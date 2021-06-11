@@ -116,8 +116,19 @@ $n$
 \end{figure}
 
 
-\newpage
+
 \section{گام چهارم}
 
+از آنجا که امکان استفاده از \lr{printf} در کرنل وجود ندارد، هر نخ موارد خواسته شده را داخل ۳ آرایه سراسری می نویسد. سپس در سمت \lr{host} این ۳ آرایه خوانده و چاپ می‌شوند. نمونه اجرای کد در شکل
+\ref{fig:printf}
+قابل مشاهده است (کد این بخش در فایل \lr{whoAmI.cu} قرار دارد).
+
+\begin{figure}[ht!]
+\begin{center}
+	\includegraphics[height=17cm]{images/printf}
+\end{center}
+\caption{نحوه دسته‌بندی نخ‌ها داخل \lr{warp} و \lr{block}}
+\label{fig:printf}
+\end{figure}
 
 \end{document}
