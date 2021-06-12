@@ -85,8 +85,8 @@ void addVector(int * a, int *b, int *c, size_t n) {
 		c[i] = a[i] + b[i];
 	}
 
-	// get starting time
-	starttime = omp_get_wtime();
+	// get ending time and use it to determine elapsed time
+	elapsedtime = omp_get_wtime() - starttime;
 }
 
 // Prints a vector to the stdout.
