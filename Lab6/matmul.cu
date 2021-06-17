@@ -3,23 +3,62 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#define DEBUG
+#define APPROACH 1
+
 // CUDA runtime
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+
+#define RUN_COUNT 10
+double timesSum = 0;
 
 
 /**
 * Matrix multiplication (CUDA Kernel) on the device: C = A * B
 */
 #define TILE_WIDTH 16
-__global__ void
-matrixMulCUDA(float *C, float *A, float *B, int n)
-{
 
+__global__ void matMulA1Kernel(float *C, float *A, float *B, int n) {
+	int col_workload = (n + blockDim.x - 1) / blockDim.x;
+	int row_workload = (n + blockDim.y - 1) / blockDim.y;
+
+	int col_start = col_workload * threadIdx.x;
+	int col_end = col_start + col_workload;
+	int row_start = row_workload * threadIdx.y;
+	int row_end = row_start + row_workload;
+
+	float sum;
+
+	for (int row = row_start; (row < row_end) && (row < n); row++) {
+		for (int col = col_start; (col < col_end) && (col < n); col++) {
+			sum = 0;
+			for (int k = 0; k < n; k++) {
+				sum += A[row * n + k] * B[k * n + col];
+			}
+			C[row * n + col] = sum;
+		}
+	}
+	
 }
 
-void constantInit(float *data, int size, float val)
-{
+__global__ void matMulA2Kernel(float *C, float *A, float *B, int n) {
+	int col = blockDim.x * blockIdx.x + threadIdx.x;
+	int row = blockDim.y * blockIdx.y + threadIdx.y;
+	float sum = 0.0f;
+
+	if (col >= n || row >= n) {
+		return;
+	}
+
+	for (int k = 0; k < n; k++)
+	{
+		sum += A[row * n + k] * B[k * n + col];
+	}
+	C[row * n + col] = sum;
+}
+
+void constantInit(float *data, int size, float val) {
 	for (int i = 0; i < size; ++i)
 	{
 		data[i] = val;
@@ -29,8 +68,7 @@ void constantInit(float *data, int size, float val)
 /**
 * Run a simple test of matrix multiplication using CUDA
 */
-int matrixMultiply(int argc, char **argv, int n)
-{
+int matrixMultiply(int argc, char **argv, int n) {
 	// Allocate host memory for matrices A and B
 	unsigned int size_A = n * n;
 	unsigned int mem_size_A = sizeof(float)* size_A;
@@ -101,8 +139,21 @@ int matrixMultiply(int argc, char **argv, int n)
 	}
 
 	// Setup execution parameters
-	dim3 threads(32, 32,1);
-	dim3 grid(1,1,1);
+
+	#if APPROACH == 1
+		dim3 threads(32, 32, 1);
+		dim3 grid(1, 1, 1);
+	#elif APPROACH == 2
+		dim3 threads(32, 32, 1);
+		int gridOneDim = (n + threads.x - 1) / threads.x;
+		dim3 grid(gridOneDim, gridOneDim, 1);
+	#elif APPROACH == 3
+		printf("Computing with approach 3\n");
+	#endif
+
+	#ifdef DEBUG
+		printf("threads: (%d, %d, %d), blocks(%d, %d, %d)\n", threads.x, threads.y, threads.z, grid.x, grid.y, grid.z);
+	#endif
 
 	// Create and start timer
 	printf("Computing result using CUDA Kernel...\n");
@@ -136,7 +187,14 @@ int matrixMultiply(int argc, char **argv, int n)
 	}
 
 	// Execute the kernel
-	matrixMulCUDA << < grid, threads >> > (d_C, d_A, d_B, n);
+	#if APPROACH == 1
+		matMulA1Kernel <<<grid, threads>>> (d_C, d_A, d_B, n);
+	#elif APPROACH == 2
+		matMulA2Kernel <<<grid, threads>>> (d_C, d_A, d_B, n);
+	#elif APPROACH == 3
+		matMulA3Kernel <<<grid, threads>>> (d_C, d_A, d_B, n);
+	#endif
+	
 
 	error = cudaGetLastError();
 	if (error != cudaSuccess)
@@ -167,6 +225,7 @@ int matrixMultiply(int argc, char **argv, int n)
 	error = cudaEventElapsedTime(&msecTotal, start, stop);
 
 	printf("Elapsed time in msec = %f\n", msecTotal);
+	timesSum += msecTotal;
 
 	if (error != cudaSuccess)
 	{
@@ -182,6 +241,22 @@ int matrixMultiply(int argc, char **argv, int n)
 		printf("cudaMemcpy (h_C,d_C) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
 		exit(EXIT_FAILURE);
 	}
+
+	#ifdef DEBUG
+		// Checking results on CPU
+		float sum;
+		for (int i = 0; i < n * n; i++) {
+			sum = 0;
+			for (int k = 0; k < n; k++)
+			{
+				sum += h_A[(i / n) * n + k] * h_B[k * n + (i % n)];
+			}
+			if (h_C[(i / n) * n + (i % n)] != sum) {
+				fprintf(stderr, "wrong answer\n");
+				exit(1);
+			}
+		}
+	#endif
 
 
 	// Clean up memory
@@ -241,7 +316,18 @@ int main(int argc, char **argv)
 
 	printf("MatrixA(%d,%d), MatrixB(%d,%d)\n", n, n, n, n);
 
-	int matrix_result = matrixMultiply(argc, argv, n);
+	#if APPROACH == 1
+		printf("Computing with approach 1\n");
+	#elif APPROACH == 2
+		printf("Computing with approach 2\n");
+	#elif APPROACH == 3
+		printf("Computing with approach 3\n");
+	#endif
 
-	exit(matrix_result);
+	for (int i = 0; i < RUN_COUNT; i++) {
+		 matrixMultiply(argc, argv, n);
+	}
+	printf("\nAverage time in msec = %f\n", timesSum / RUN_COUNT);
+
+	return 0;
 }
