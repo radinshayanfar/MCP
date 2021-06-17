@@ -4,7 +4,7 @@
 #include <assert.h>
 
 #define DEBUG
-#define APPROACH 1
+#define APPROACH 3
 
 // CUDA runtime
 #include <cuda_runtime.h>
@@ -17,7 +17,7 @@ double timesSum = 0;
 /**
 * Matrix multiplication (CUDA Kernel) on the device: C = A * B
 */
-#define TILE_WIDTH 16
+#define BLOCK_WIDTH 32
 
 __global__ void matMulA1Kernel(float *C, float *A, float *B, int n) {
 	int col_workload = (n + blockDim.x - 1) / blockDim.x;
@@ -51,11 +51,30 @@ __global__ void matMulA2Kernel(float *C, float *A, float *B, int n) {
 		return;
 	}
 
-	for (int k = 0; k < n; k++)
-	{
+	for (int k = 0; k < n; k++) {
 		sum += A[row * n + k] * B[k * n + col];
 	}
 	C[row * n + col] = sum;
+}
+
+__global__ void matMulA3Kernel(float *C, float *A, float *B, int n) {
+	int TILE_WIDTH = blockDim.x;
+	int col = blockDim.x * blockIdx.x + threadIdx.x;
+	int row = blockDim.y * blockIdx.y + threadIdx.y;
+	float sum = 0.0f;
+
+	if (col >= n || row >= n) {
+		return;
+	}
+
+	int tiles = (n + TILE_WIDTH - 1) / TILE_WIDTH;
+
+	for (int stage = 0; stage < tiles; stage++) {
+		for (int k = 0; (k < TILE_WIDTH) && (stage * TILE_WIDTH + k < n); k++) {
+			sum += A[row * n + (stage * TILE_WIDTH + k)] * B[(stage * TILE_WIDTH + k) * n + col];
+		}
+		C[row * n + col] = sum;
+	}
 }
 
 void constantInit(float *data, int size, float val) {
@@ -141,14 +160,16 @@ int matrixMultiply(int argc, char **argv, int n) {
 	// Setup execution parameters
 
 	#if APPROACH == 1
-		dim3 threads(32, 32, 1);
+		dim3 threads(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 		dim3 grid(1, 1, 1);
 	#elif APPROACH == 2
-		dim3 threads(32, 32, 1);
+		dim3 threads(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 		int gridOneDim = (n + threads.x - 1) / threads.x;
 		dim3 grid(gridOneDim, gridOneDim, 1);
 	#elif APPROACH == 3
-		printf("Computing with approach 3\n");
+		dim3 threads(BLOCK_WIDTH, BLOCK_WIDTH, 1);
+		int gridOneDim = (n + threads.x - 1) / threads.x;
+		dim3 grid(gridOneDim, gridOneDim, 1);
 	#endif
 
 	#ifdef DEBUG
