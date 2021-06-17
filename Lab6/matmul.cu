@@ -428,6 +428,8 @@ int main(int argc, char **argv)
 		printf("Computing with approach 2\n");
 	#elif APPROACH == 3
 		printf("Computing with approach 3\n");
+	#elif APPROACH == 4
+		printf("Computing with approach 4\n");
 	#endif
 
 	for (int i = 0; i < RUN_COUNT; i++) {
