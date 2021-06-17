@@ -2,15 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <omp.h>
 
-#define DEBUG
-#define APPROACH 3
+// #define DEBUG
+#define APPROACH 4
 
 // CUDA runtime
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
-#define RUN_COUNT 10
+#define RUN_COUNT 5
 double timesSum = 0;
 
 
@@ -75,6 +76,37 @@ __global__ void matMulA3Kernel(float *C, float *A, float *B, int n) {
 		}
 		C[row * n + col] = sum;
 	}
+}
+
+__global__ void matMulA4Kernel(float *C, float *A, float *B, int n) {
+	__shared__ int s_A[BLOCK_WIDTH][BLOCK_WIDTH];
+	__shared__ int s_B[BLOCK_WIDTH][BLOCK_WIDTH];
+
+	int TILE_WIDTH = blockDim.x;
+	int col = blockDim.x * blockIdx.x + threadIdx.x;
+	int row = blockDim.y * blockIdx.y + threadIdx.y;
+	float sum = 0.0f;
+
+	if (col >= n || row >= n) {
+		return;
+	}
+
+	int tiles = (n + TILE_WIDTH - 1) / TILE_WIDTH;
+
+	for (int stage = 0; stage < tiles; stage++) {
+		s_A[threadIdx.y][threadIdx.x] = A[(row) * n + (stage * TILE_WIDTH + threadIdx.x)];
+		s_B[threadIdx.y][threadIdx.x] = B[(stage * TILE_WIDTH + threadIdx.y) * n + (col)];
+
+		__syncthreads();
+
+		for (int k = 0; (k < TILE_WIDTH) && (stage * TILE_WIDTH + k < n); k++) {
+			sum += A[row * n + k] * B[k * n + col];
+		}
+
+		__syncthreads();
+	}
+
+	C[row * n + col] = sum;
 }
 
 void constantInit(float *data, int size, float val) {
@@ -162,11 +194,7 @@ int matrixMultiply(int argc, char **argv, int n) {
 	#if APPROACH == 1
 		dim3 threads(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 		dim3 grid(1, 1, 1);
-	#elif APPROACH == 2
-		dim3 threads(BLOCK_WIDTH, BLOCK_WIDTH, 1);
-		int gridOneDim = (n + threads.x - 1) / threads.x;
-		dim3 grid(gridOneDim, gridOneDim, 1);
-	#elif APPROACH == 3
+	#else
 		dim3 threads(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 		int gridOneDim = (n + threads.x - 1) / threads.x;
 		dim3 grid(gridOneDim, gridOneDim, 1);
@@ -214,6 +242,8 @@ int matrixMultiply(int argc, char **argv, int n) {
 		matMulA2Kernel <<<grid, threads>>> (d_C, d_A, d_B, n);
 	#elif APPROACH == 3
 		matMulA3Kernel <<<grid, threads>>> (d_C, d_A, d_B, n);
+	#elif APPROACH == 4
+		matMulA4Kernel <<<grid, threads>>> (d_C, d_A, d_B, n);
 	#endif
 	
 
@@ -292,6 +322,59 @@ int matrixMultiply(int argc, char **argv, int n) {
 
 }
 
+void matMulSerial(int argc, char **argv, int n) {
+	#ifndef _OPENMP
+		printf("OpenMP is not supported.\n");
+		return;
+	#endif
+
+	// Allocate host memory for matrices A and B
+	unsigned int size_A = n * n;
+	unsigned int mem_size_A = sizeof(float)* size_A;
+	float *h_A = (float *)malloc(mem_size_A);
+	unsigned int size_B = n * n;
+	unsigned int mem_size_B = sizeof(float)* size_B;
+	float *h_B = (float *)malloc(mem_size_B);
+
+	// Initialize host memory
+	const float valB = 0.01f;
+	constantInit(h_A, size_A, 1.0f);
+	constantInit(h_B, size_B, valB);
+
+	// Allocate host matrix C
+	unsigned int mem_size_C = n * n * sizeof(float);
+	float *h_C = (float *)malloc(mem_size_C);
+
+	if (h_C == NULL)
+	{
+		fprintf(stderr, "Failed to allocate host matrix C!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	// get starting time
+	double starttime = omp_get_wtime();
+
+	float sum;
+	for (int i = 0; i < n * n; i++) {
+		sum = 0;
+		for (int k = 0; k < n; k++)
+		{
+			sum += h_A[(i / n) * n + k] * h_B[k * n + (i % n)];
+		}
+		h_C[(i / n) * n + (i % n)] = sum;
+	}
+
+	// get ending time and use it to determine elapsed time
+	double elapsedtime = (omp_get_wtime() - starttime) * 1000;
+
+	printf("Elapsed time in msec = %lf\n", elapsedtime);
+	timesSum += elapsedtime;
+
+	free(h_A);
+ 	free(h_B);
+ 	free(h_C);
+}
+
 
 /**
 * Program main
@@ -337,7 +420,9 @@ int main(int argc, char **argv)
 
 	printf("MatrixA(%d,%d), MatrixB(%d,%d)\n", n, n, n, n);
 
-	#if APPROACH == 1
+	#if APPROACH == 0
+		printf("Computing with approach 0 (serial)\n");
+	#elif APPROACH == 1
 		printf("Computing with approach 1\n");
 	#elif APPROACH == 2
 		printf("Computing with approach 2\n");
@@ -346,7 +431,11 @@ int main(int argc, char **argv)
 	#endif
 
 	for (int i = 0; i < RUN_COUNT; i++) {
-		 matrixMultiply(argc, argv, n);
+		#if APPROACH == 0
+			matMulSerial(argc, argv, n);
+		#else
+			matrixMultiply(argc, argv, n);
+		#endif
 	}
 	printf("\nAverage time in msec = %f\n", timesSum / RUN_COUNT);
 

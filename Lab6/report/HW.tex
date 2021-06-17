@@ -12,6 +12,79 @@
 
 \section{گام اول}
 
+در این گام، کد ضرب ماتریس‌هایی با حداکثر اندازه ۳۲ در ۳۲ را می‌نویسیم.
+
+در صورتی که در ابتدای برنامه خط
+
+\begin{latin}
+%\begin{minipage}{\linewidth}
+\begin{lstlisting}[language=C, belowskip=-0.5\baselineskip]
+#define DEBUG
+\end{lstlisting}
+%\end{minipage}
+\end{latin}
+
+قرار گیرد، نتایج محاسبات پس از اجرای کرنل و پیش از آزادسازی حافظه‌ها بر روی میزبان (\lr{CPU}) به شکل تک‌نخی بررسی می‌شود. اگر ضرب ماتریس‌ها نادرست انجام شده باشد، در این قسمت پیغام \lr{wrong answer} چاپ می‌شود.
+
+
+\section{گام دوم}
+
+در این گام سه راه‌حل مختلف برای ضرب ماتریس‌ها پیاده‌سازی شده است. در روش اول تنها ۱۰۲۴ نخ در یک بلوک تمام محاسبات را انجام می‌دهند. این روش در کرنل \lr{matMulA1Kernel} پیاده‌سازی شده است. روش دوم که در کرنل \lr{matMulA2Kernel} پیاده شده است، به تعداد درایه‌های ماتریس‌ها نخ در بلوک‌های مختلف اختصاص می‌دهد. در روش سوم و آخر از تکنیک \lr{tiling} با اندازه بلوک و کاشی‌های ۳۲ در ۳۲ استفاده شده است. روش سوم نیز در کرنل \lr{matMulA3Kernel} آمده است.
+
+در ابتدای برنامه با تغییر خط
+\begin{latin}
+%\begin{minipage}{\linewidth}
+\begin{lstlisting}[language=C, belowskip=-0.5\baselineskip]
+#define APPROACH x
+\end{lstlisting}
+%\end{minipage}
+\end{latin}
+می‌توان برنامه را با راه‌حل شماره \lr{x} اجرا کرد.
+
+
+\begin{table}[ht]
+\caption{زمان‌های اجرا (میلی ثانیه) به ازای اندازه ورودی‌های مختلف}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{موازی‌سازی} & \multicolumn{3}{|c|}{اندازه ورودی}& \multirow{2}{*}{تسریع} \\
+    \cline{2-4}
+& $2^{10}$ & $2^{11}$ & $2^{12}$ & \\
+    \hline
+  سریال & 
+  1753/2 & 56280/0 & 538651/5 & - \\ \hline
+  
+راه‌حل اول &
+  687/8 & 6011/7 & 53455/7 &  \\ \hline
+  
+راه‌حل دوم & 
+  8/5 & 68/7 & 622/0 &  \\ \hline
+ 
+ راه‌حل سوم (کاشی‌کاری) & 
+  8.8 & 69.9 & 592/8 &  \\ \hline
+\end{tabular}
+\end{center}
+\label{tab:section2-results}
+\end{table}
+
+\begin{table}[ht]
+\caption{زمان‌های اجرا (میلی ثانیه) به ازای اندازه ورودی‌های مختلف}
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+    \hline
+    \multirow{2}{*}{موازی‌سازی} & \multicolumn{3}{|c|}{اندازه ورودی}& \multirow{2}{*}{تسریع} \\
+    \cline{2-4}
+& $2^{10}$ & $2^{11}$ & $2^{12}$ & \\
+    \hline
+  کاشی‌کاری با حافظه مشترک & 
+  8/2 & 61/5 & 515/3 &  \\ \hline
+
+\end{tabular}
+\end{center}
+\label{tab:section3-results}
+\end{table}
+
+
 
 %\begin{figure}[ht!]
 %\begin{center}
@@ -20,38 +93,6 @@
 %\caption{مشخصات دستگاه با استفاده از کد \lr{deviceQuery}}
 %\label{fig:query}
 %\end{figure}
-
-
-%\begin{table}[ht]
-%\caption{زمان‌های اجرا (ثانیه) به ازای اندازه ورودی‌های مختلف}
-%\begin{center}
-%\begin{tabular}{|c|c|c|c|c|}
-%    \hline
-%    \multirow{2}{*}{موازی‌سازی} & \multicolumn{3}{|c|}{اندازه ورودی}& \multirow{2}{*}{تسریع} \\
-%    \cline{2-4}
-%& $2^{26}$ & $2^{27}$ & $2^{28}$ & \\
-%    \hline
-%  سریال & 
-%  0/071802 & 0/141790 & 0/281426 & - \\ \hline
-%  
-%  پردازش $n$ المان توسط هر نخ &
-%  0/153959 & 0/302569 & 1/038570 & 0/36 \\ \hline
-%  
-%  پردازش با $n$ بلوک & 
-%  0/005561 & 0/010990 & 0/021471 & 13/00 \\ \hline
-%\end{tabular}
-%\end{center}
-%\label{tab:gpuAdd}
-%\end{table}
-
-
-%\begin{latin}
-%%\begin{minipage}{\linewidth}
-%\begin{lstlisting}[language=C]
-%int ELEMENTS_PER_THREAD = size / 1024;
-%\end{lstlisting}
-%%\end{minipage}
-%\end{latin}
 
 
 \end{document}
