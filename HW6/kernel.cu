@@ -5,12 +5,150 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
-#define KERNEL_NUM 0
+#define KERNEL_NUM 5
 
 #define RUN_COUNT 10
-#define BLOCK_SIZE_EXP 10
+#define BLOCK_SIZE_EXP 8
 
 float computeTimeSum = 0, totalTimeSum = 0;
+
+__global__ void kernel1(int *inputData, int *outputData) {
+	extern __shared__ int sdata[];
+
+	// each threads loads one element from global to shared memory
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+	sdata[tid] = inputData[i];
+	__syncthreads();
+
+	// do reduction in shared memory
+	for (unsigned int s = 1; s < blockDim.x; s *= 2) {
+		if (tid % (2 * s) == 0) {
+			sdata[tid] += sdata[tid + s];
+		}
+		__syncthreads();
+	}
+
+	// write result for this block to global memory
+	if (tid == 0) {
+		outputData[blockIdx.x] = sdata[0];
+	}
+}
+
+__global__ void kernel2(int *inputData, int *outputData) {
+	extern __shared__ int sdata[];
+
+	// each threads loads one element from global to shared memory
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+	sdata[tid] = inputData[i];
+	__syncthreads();
+
+	// do reduction in shared memory
+	for (unsigned int s = 1; s < blockDim.x; s *= 2) {
+		int index = 2 * s * tid;
+		if (index < blockDim.x) {
+			sdata[index] += sdata[index + s];
+		}
+
+		__syncthreads();
+	}
+
+	// write result for this block to global memory
+	if (tid == 0) {
+		outputData[blockIdx.x] = sdata[0];
+	}
+}
+
+__global__ void kernel3(int *inputData, int *outputData) {
+	extern __shared__ int sdata[];
+
+	// each threads loads one element from global to shared memory
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+	sdata[tid] = inputData[i];
+	__syncthreads();
+
+	// do reduction in shared memory
+	for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+		if (tid < s) {
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	// write result for this block to global memory
+	if (tid == 0) {
+		outputData[blockIdx.x] = sdata[0];
+	}
+}
+
+__global__ void kernel4(int *inputData, int *outputData) {
+	extern __shared__ int sdata[];
+
+	// each threads loads one element from global to shared memory
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+	sdata[tid] = inputData[i] + inputData[i + blockDim.x];
+	__syncthreads();
+
+	// do reduction in shared memory
+	for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+		if (tid < s) {
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	// write result for this block to global memory
+	if (tid == 0) {
+		outputData[blockIdx.x] = sdata[0];
+		// printf("outputData[%d]: %d\n", blockIdx.x, outputData[blockIdx.x]);
+	}
+}
+
+__global__ void kernel5(int *inputData, int *outputData) {
+	extern __shared__ int sdata[];
+
+	// each threads loads one element from global to shared memory
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+	sdata[tid] = inputData[i] + inputData[i + blockDim.x];
+	__syncthreads();
+
+	// do reduction in shared memory
+	for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1) {
+		if (tid < s) {
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	if (tid < 32) {
+		sdata[tid] += sdata[tid + 32];
+		// __syncthreads();
+		sdata[tid] += sdata[tid + 16];
+		// __syncthreads();
+		sdata[tid] += sdata[tid + 8];
+		// __syncthreads();
+		sdata[tid] += sdata[tid + 4];
+		// __syncthreads();
+		sdata[tid] += sdata[tid + 2];
+		// __syncthreads();
+		sdata[tid] += sdata[tid + 1];
+		// __syncthreads();
+	}
+	
+
+	// write result for this block to global memory
+	if (tid == 0) {
+		outputData[blockIdx.x] = sdata[0];
+		// printf("outputData[%d]: %d\n", blockIdx.x, outputData[blockIdx.x]);
+	}
+}
 
 void constantInit(int *data, int size, int val) {
 	for (int i = 0; i < size; ++i) {
@@ -19,16 +157,17 @@ void constantInit(int *data, int size, int val) {
 }
 
 void executeKernel(dim3 gridDim, dim3 blockDim, int *inputData, int *outputData) {
+	size_t sharedMemorySize = blockDim.x * sizeof(int);
 	#if KERNEL_NUM == 1
-		matMulA1Kernel <<<gridDim, blockDim>>> (d_C, d_A, d_B, n);
+		kernel1 <<<gridDim, blockDim, sharedMemorySize>>> (inputData, outputData);
 	#elif KERNEL_NUM == 2
-		matMulA2Kernel <<<gridDim, blockDim>>> (d_C, d_A, d_B, n);
+		kernel2 <<<gridDim, blockDim, sharedMemorySize>>> (inputData, outputData);
 	#elif KERNEL_NUM == 3
-		matMulA3Kernel <<<gridDim, blockDim>>> (d_C, d_A, d_B, n);
+		kernel3 <<<gridDim, blockDim, sharedMemorySize>>> (inputData, outputData);
 	#elif KERNEL_NUM == 4
-		matMulA4Kernel <<<gridDim, blockDim>>> (d_C, d_A, d_B, n);
+		kernel4 <<<gridDim, blockDim, sharedMemorySize>>> (inputData, outputData);
 	#elif KERNEL_NUM == 5
-		matMulA4Kernel <<<gridDim, blockDim>>> (d_C, d_A, d_B, n);
+		kernel5 <<<gridDim, blockDim, sharedMemorySize>>> (inputData, outputData);
 	#endif
 }
 
@@ -36,7 +175,9 @@ void reduce(int exp) {
     int n = 1 << exp;
 	size_t mem_size = sizeof(int) * n;
 
-    int rounds = (exp + BLOCK_SIZE_EXP - 1) / BLOCK_SIZE_EXP;
+	bool halveBlocks = KERNEL_NUM >= 4;
+
+    int rounds = (exp + BLOCK_SIZE_EXP + halveBlocks - 1) / (BLOCK_SIZE_EXP + halveBlocks);
 
 	cudaError_t error;
 
@@ -102,29 +243,44 @@ void reduce(int exp) {
 	const int BLOCK_SIZE = 1 << BLOCK_SIZE_EXP;
 	dim3 gridDim, blockDim;
 	int *inputData = dev_A, *outputData;
-	for (int round = rounds; round > 0; round--, exp -= BLOCK_SIZE_EXP, n = 1 << exp) {
-		if (round == 1) { // it's the last round
-			blockDim = dim3(n, 1, 1);
+	for (int round = rounds; round > 0; round--, exp -= (BLOCK_SIZE_EXP + halveBlocks), n = 1 << exp) {
+		if (round == 1) {				// it's the last round
+			blockDim = dim3(n >> halveBlocks, 1, 1);
 			gridDim = dim3(1, 1, 1);
 		} else {
 			blockDim = dim3(BLOCK_SIZE, 1, 1);
-			gridDim = dim3(1 << (exp - BLOCK_SIZE_EXP), 1, 1);
+			gridDim = dim3(1 << (exp - BLOCK_SIZE_EXP - halveBlocks), 1, 1);
 		}
 		printf("blocks: (%d, %d, %d), grid(%d, %d, %d), exp: %d, n: %d\n", blockDim.x, blockDim.y, blockDim.z, gridDim.x, gridDim.y, gridDim.z, exp, n);
 
 		// Execute the kernel
-		outputData = cudaMalloc(&outputData, size);
+		error = cudaMalloc(&outputData, gridDim.x * sizeof(int));
+		if (error != cudaSuccess) {
+			printf("cudaMalloc outputData returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
+			exit(EXIT_FAILURE);
+		}
+
 		executeKernel(gridDim, blockDim, inputData, outputData);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) {
+			fprintf(stderr, "Failed to launch kernel (%s)!\n", cudaGetErrorString(error));
+			exit(EXIT_FAILURE);
+		}
+		
+		error = cudaDeviceSynchronize();
+		if (error != cudaSuccess) {
+			fprintf(stderr, "Failed to synchronize devices (%s)!\n", cudaGetErrorString(error));
+			exit(EXIT_FAILURE);
+		}
+
 		cudaFree(inputData);
 		inputData = outputData;
+
+		// error = cudaMemcpy(h_A, inputData, gridDim.x * sizeof(int), cudaMemcpyDeviceToHost);
+		// for (int j = 0; j < gridDim.x; j++)
+		// 	printf("inputData[%d]: %d\n", j, h_A[j]);
 	}
 	
-	error = cudaGetLastError();
-	if (error != cudaSuccess) {
-		fprintf(stderr, "Failed to launch kernel!\n", cudaGetErrorString(error));
-		exit(EXIT_FAILURE);
-	}
-
 	error = cudaEventRecord(computeStop, NULL);
 	if (error != cudaSuccess) {
 		fprintf(stderr, "Failed to record computeStop event (error code %s)!\n", cudaGetErrorString(error));
@@ -139,11 +295,12 @@ void reduce(int exp) {
 	}
 
 	// Copy result from device to host
-	// error = cudaMemcpy(h_C, d_C, mem_size_C, cudaMemcpyDeviceToHost);
-	// if (error != cudaSuccess) {
-	// 	printf("cudaMemcpy (h_C,d_C) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
-	// 	exit(EXIT_FAILURE);
-	// }
+	int *result = (int *) malloc(sizeof(int));
+	error = cudaMemcpy(result, inputData, sizeof(int), cudaMemcpyDeviceToHost);
+	if (error != cudaSuccess) {
+		printf("cudaMemcpy (h_C,d_C) returned error %s (code %d), line(%d)\n", cudaGetErrorString(error), error, __LINE__);
+		exit(EXIT_FAILURE);
+	}
 
 	error = cudaEventRecord(copyStop, NULL);
 	if (error != cudaSuccess) {
@@ -168,13 +325,21 @@ void reduce(int exp) {
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Total time = %f, compute time = %f (ms)\n", totalMsec, computeMsec);
+	printf("Sum = %d, total time = %f, compute time = %f (ms)\n", *result, totalMsec, computeMsec);
 	totalTimeSum += totalMsec;
 	computeTimeSum += computeMsec;
 
 	// Clean up memory
-	cudaFreeHost(h_A);
-	cudaFree(dev_A);
+	error = cudaFreeHost(h_A);
+	if (error != cudaSuccess) {
+		fprintf(stderr, "Failed to free up host memory (%s)!\n", cudaGetErrorString(error));
+		exit(EXIT_FAILURE);
+	}
+	error = cudaFree(inputData);
+	if (error != cudaSuccess) {
+		fprintf(stderr, "Failed to free up inputData (%s)!\n", cudaGetErrorString(error));
+		exit(EXIT_FAILURE);
+	}
 }
 
 
@@ -189,10 +354,11 @@ int main(int argc, char **argv)
 	scanf("%u", &exp);
     long n = 1 << exp;
 
-    printf("Reducing %ld size array.\n", n);
+    printf("Reducing %ld size array.\n\n", n);
 
 	for (int i = 0; i < RUN_COUNT; i++) {
         reduce(exp);
+		printf("\n");
 	}
 
     float avg = computeTimeSum / RUN_COUNT;
