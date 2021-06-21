@@ -395,6 +395,11 @@ void reduce(const int exp) {
 	computeTimeSum += computeMsec;
 
 	#ifdef DEBUG
+	#ifndef _OPENMP
+		printf("OpenMP is not supported.\n");
+		return;
+	#endif
+	
 	// Check results on CPU
 	printf("[-] Checking on CPU...");
 	int cpuResult = checkCPU(h_A, 1 << exp);
@@ -426,10 +431,6 @@ void reduce(const int exp) {
 */
 int main(int argc, char **argv)
 {
-	#ifndef _OPENMP
-		printf("OpenMP is not supported.\n");
-		return;
-	#endif
 	srand(time(NULL));
 
 	// Size of square matrices
