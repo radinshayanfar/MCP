@@ -2,7 +2,7 @@
 
 Here are my solutions to AUT Multicore Programming course (OpenMP and CUDA) assignments.
 
->  Instructor: [Dr. M. Momtazpour](https://scholar.google.com/citations?user=uwozfWkAAAAJ&hl=en).
+>  Instructor: [Dr. M. Momtazpour](https://scholar.google.com/citations?user=uwozfWkAAAAJ&hl=en)
 
 > Semester: Spring 2021
 
