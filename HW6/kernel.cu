@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <omp.h>
+#include <time.h>
 
 // CUDA runtime
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
+// #define DEBUG
 #define KERNEL_NUM 5
 
 #define RUN_COUNT 10
@@ -109,7 +112,7 @@ __global__ void kernel4(int *inputData, int *outputData) {
 	}
 }
 
-__global__ void kernel5(int *inputData, int *outputData) {
+__global__ void wrongKernel5(int *inputData, int *outputData) {
 	extern __shared__ int sdata[];
 
 	// each threads loads one element from global to shared memory
@@ -128,20 +131,60 @@ __global__ void kernel5(int *inputData, int *outputData) {
 	}
 
 	if (tid < 32) {
-		sdata[tid] += sdata[tid + 32];
-		// __syncthreads();
-		sdata[tid] += sdata[tid + 16];
-		// __syncthreads();
-		sdata[tid] += sdata[tid + 8];
-		// __syncthreads();
-		sdata[tid] += sdata[tid + 4];
-		// __syncthreads();
-		sdata[tid] += sdata[tid + 2];
-		// __syncthreads();
+		if (blockDim.x > 32) {
+			sdata[tid] += sdata[tid + 32];
+			__syncthreads();
+		}
+		if (blockDim.x > 16) {
+			sdata[tid] += sdata[tid + 16];
+			__syncthreads();
+		}
+		if (blockDim.x > 8) {
+			sdata[tid] += sdata[tid + 8];
+			__syncthreads();
+		}
+		if (blockDim.x > 4) {
+			sdata[tid] += sdata[tid + 4];
+			__syncthreads();
+		}
+		if (blockDim.x > 2) {
+			sdata[tid] += sdata[tid + 2];
+			__syncthreads();
+		}
 		sdata[tid] += sdata[tid + 1];
-		// __syncthreads();
+		__syncthreads();
 	}
 	
+
+	// write result for this block to global memory
+	if (tid == 0) {
+		outputData[blockIdx.x] = sdata[0];
+		// printf("outputData[%d]: %d\n", blockIdx.x, outputData[blockIdx.x]);
+	}
+	// if (tid == 0 && blockIdx.x == 0) {
+	// 	printf("outputData[%d]: %d\n", blockIdx.x, outputData[blockIdx.x]);
+	// }
+}
+
+__global__ void kernel5(int *inputData, int *outputData) {
+	extern __shared__ int sdata[];
+
+	// each threads loads one element from global to shared memory
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x * (blockDim.x * 2) + threadIdx.x;
+	sdata[tid] = inputData[i] + inputData[i + blockDim.x];
+	__syncthreads();
+
+	// do reduction in shared memory
+	for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+		if (tid < s) {
+			sdata[tid] += sdata[tid + s];
+		} else {
+			return;
+		}
+
+		__syncthreads();
+	}
 
 	// write result for this block to global memory
 	if (tid == 0) {
@@ -154,6 +197,22 @@ void constantInit(int *data, int size, int val) {
 	for (int i = 0; i < size; ++i) {
 		data[i] = val;
 	}
+}
+
+void randomInit(int *data, int size) {
+	#pragma omp parallel for
+	for (int i = 0; i < size; ++i) {
+		data[i] = rand() % 10;
+	}
+}
+
+int checkCPU(int *inputData, int length) {
+	int sum = 0;
+	#pragma omp parallel for reduction(+: sum)
+	for (int i = 0; i < length; i++) {
+		sum += inputData[i];
+	}
+	return sum;
 }
 
 void executeKernel(dim3 gridDim, dim3 blockDim, int *inputData, int *outputData) {
@@ -171,7 +230,7 @@ void executeKernel(dim3 gridDim, dim3 blockDim, int *inputData, int *outputData)
 	#endif
 }
 
-void reduce(int exp) {
+void reduce(const int exp) {
     int n = 1 << exp;
 	size_t mem_size = sizeof(int) * n;
 
@@ -189,6 +248,7 @@ void reduce(int exp) {
         exit(1);
     }
 	constantInit(h_A, n, 1);
+	// randomInit(h_A, n);
 
 	// Allocate CUDA events that we'll use for timing
 	cudaEvent_t copyStart, copyStop, computeStart, computeStop;
@@ -243,15 +303,16 @@ void reduce(int exp) {
 	const int BLOCK_SIZE = 1 << BLOCK_SIZE_EXP;
 	dim3 gridDim, blockDim;
 	int *inputData = dev_A, *outputData;
-	for (int round = rounds; round > 0; round--, exp -= (BLOCK_SIZE_EXP + halveBlocks), n = 1 << exp) {
+	int exp_copy = exp;
+	for (int round = rounds; round > 0; round--, exp_copy -= (BLOCK_SIZE_EXP + halveBlocks), n = 1 << exp_copy) {
 		if (round == 1) {				// it's the last round
 			blockDim = dim3(n >> halveBlocks, 1, 1);
 			gridDim = dim3(1, 1, 1);
 		} else {
 			blockDim = dim3(BLOCK_SIZE, 1, 1);
-			gridDim = dim3(1 << (exp - BLOCK_SIZE_EXP - halveBlocks), 1, 1);
+			gridDim = dim3(1 << (exp_copy - BLOCK_SIZE_EXP - halveBlocks), 1, 1);
 		}
-		printf("blocks: (%d, %d, %d), grid(%d, %d, %d), exp: %d, n: %d\n", blockDim.x, blockDim.y, blockDim.z, gridDim.x, gridDim.y, gridDim.z, exp, n);
+		printf("blocks: (%d, %d, %d), grid(%d, %d, %d), exp: %d, n: %d\n", blockDim.x, blockDim.y, blockDim.z, gridDim.x, gridDim.y, gridDim.z, exp_copy, n);
 
 		// Execute the kernel
 		error = cudaMalloc(&outputData, gridDim.x * sizeof(int));
@@ -273,7 +334,11 @@ void reduce(int exp) {
 			exit(EXIT_FAILURE);
 		}
 
-		cudaFree(inputData);
+		error = cudaFree(inputData);
+		if (error != cudaSuccess) {
+			fprintf(stderr, "Failed to free up inputData (%s)!\n", cudaGetErrorString(error));
+			exit(EXIT_FAILURE);
+		}
 		inputData = outputData;
 
 		// error = cudaMemcpy(h_A, inputData, gridDim.x * sizeof(int), cudaMemcpyDeviceToHost);
@@ -329,6 +394,19 @@ void reduce(int exp) {
 	totalTimeSum += totalMsec;
 	computeTimeSum += computeMsec;
 
+	#ifdef DEBUG
+	// Check results on CPU
+	printf("[-] Checking on CPU...");
+	int cpuResult = checkCPU(h_A, 1 << exp);
+	if (*result != cpuResult) {
+		printf("\n[!] Reduction result is not same as CPU's\n");
+		printf("[-] GPU: %d, CPU: %d\n", *result, cpuResult);
+		exit(1);
+	} else {
+		printf(" [OK]\n");
+	}
+	#endif
+
 	// Clean up memory
 	error = cudaFreeHost(h_A);
 	if (error != cudaSuccess) {
@@ -348,6 +426,12 @@ void reduce(int exp) {
 */
 int main(int argc, char **argv)
 {
+	#ifndef _OPENMP
+		printf("OpenMP is not supported.\n");
+		return;
+	#endif
+	srand(time(NULL));
+
 	// Size of square matrices
 	unsigned short exp = 0;
 	printf("[-] Exponent = ");
