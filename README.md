@@ -16,7 +16,7 @@ List of some common highly parallelizable algorithms that have been implemented 
 - 3 dimensional matrix multiplication - OpenMP ([HW3/3DMatMul.cpp](./HW3/3DMatMul.cpp))
 - Prefix sum (subarray prefix sum - Hillis and Steele) - OpenMP ([Lab4](./Lab4))
 - Matrix determinant by blocked right-looking LU factorization - OpenMP ([HW4/Q3.cpp](./HW4/Q3.cpp))
-- Vector addition - CUDA ([Lab5/vectorAdd.cu](./Lab5/Source Codes/vectorAdd.cu)) - OpenMP and CUDA ([HW5/Q9.cu](./HW5/Q9.cu))
+- Vector addition - CUDA ([Lab5/vectorAdd.cu](<./Lab5/Source Codes/vectorAdd.cu>)) - OpenMP and CUDA ([HW5/Q9.cu](./HW5/Q9.cu))
 - Matrix multiplication (baseline and tilting with shared memory) - CUDA ([Lab6/matmul.cu](./Lab6/matmul.cu))
 - Reduction sum - CUDA ([HW6/kernel.cu](./HW6/kernel.cu))
 
