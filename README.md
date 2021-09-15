@@ -12,7 +12,7 @@ Here are my solutions to AUT Multicore Programming course (OpenMP and CUDA) assi
 
 List of some common highly parallelizable algorithms that have been implemented is:
 
-- Matrix addition with either 1D and 2D decompositions - OpenMP ([Lab2/matadd.cpp](./Lab2/matadd.cpp))
+- Matrix addition with both 1D and 2D decompositions - OpenMP ([Lab2/matadd.cpp](./Lab2/matadd.cpp))
 - 3 dimensional matrix multiplication - OpenMP ([HW3/3DMatMul.cpp](./HW3/3DMatMul.cpp))
 - Prefix sum (subarray prefix sum - Hillis and Steele) - OpenMP ([Lab4](./Lab4))
 - Matrix determinant by blocked right-looking LU factorization - OpenMP ([HW4/Q3.cpp](./HW4/Q3.cpp))
